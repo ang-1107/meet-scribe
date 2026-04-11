@@ -99,10 +99,39 @@ Prerequisites:
 - Node.js LTS (tested with Node 24)
 - npm
 
-Install and run:
+### Step 1: Install dependencies
 
 ```bash
 npm install
+```
+
+### Step 2: Set up environment variables
+
+Copy `.env.example` to `.env.local` and fill in the required values:
+
+```bash
+cp .env.example .env.local
+```
+
+At minimum, add a `GEMINI_API_KEY` (or `OPENAI_API_KEY`) for AI summarization.
+
+### Step 3: Sign in with a Google account (one-time)
+
+Google Meet blocks anonymous and automation-detected browsers from joining calls. The bot needs a real Google account session to join meetings successfully.
+
+Run the setup command:
+
+```bash
+npm run setup:profile
+```
+
+A browser window will open to Google Accounts. Sign in with the Google account you want the bot to use (a dedicated account is recommended). After signing in, close the browser window. The session is saved to `data/chrome-profile/` and reused automatically on every future bot run.
+
+> **Note:** You only need to do this once. The profile persists across app restarts. For deployment, copy the `data/chrome-profile/` directory to the server or re-run the setup on the host.
+
+### Step 4: Start the app
+
+```bash
 npm run dev
 ```
 
@@ -111,24 +140,6 @@ Open:
 ```text
 http://localhost:3000
 ```
-
-## Google Account Setup (One-Time)
-
-For the bot to join Google Meet calls, it needs a signed-in Google account. Google blocks anonymous/automated browsers from joining meetings.
-
-Run the setup command once:
-
-```bash
-npm run setup:profile
-```
-
-This opens a browser window where you sign into Google. After logging in, close the window. The session is saved to `data/chrome-profile/` and reused automatically on every bot run.
-
-Tips:
-
-- Use a dedicated Google account for the bot (recommended) or your personal account.
-- The profile persists across restarts — you only need to do this once.
-- For deployment, copy the profile directory to the server or re-run setup on the host.
 
 ## Scripts
 
