@@ -87,6 +87,7 @@ Create `.env.local` from `.env.example`.
 | OPENAI_API_KEY | No | OpenAI key for LLM summarization fallback |
 | MEETSCRIBE_FORCE_SIMULATION | No | `true` to skip real Meet automation and run a simulation transcript |
 | MEETSCRIBE_ALLOW_SIMULATION_FALLBACK | No | `true` to use simulation transcript only when real join/capture fails |
+| MEETSCRIBE_HEADLESS | No | `false` runs visible browser (recommended for local Meet debugging), `true` runs headless |
 | MEETSCRIBE_DEFAULT_BOT_NAME | No | Default bot display name |
 | MEETSCRIBE_DEFAULT_DURATION_SECONDS | No | Default capture duration |
 
