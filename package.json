@@ -7,6 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "setup:profile": "node scripts/setupProfile.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -15,6 +16,8 @@
   "dependencies": {
     "next": "14.2.25",
     "playwright": "1.54.2",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

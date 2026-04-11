@@ -90,6 +90,7 @@ Create `.env.local` from `.env.example`.
 | MEETSCRIBE_HEADLESS | No | `false` runs visible browser (recommended for local Meet debugging), `true` runs headless |
 | MEETSCRIBE_DEFAULT_BOT_NAME | No | Default bot display name |
 | MEETSCRIBE_DEFAULT_DURATION_SECONDS | No | Default capture duration |
+| MEETSCRIBE_CHROME_PROFILE_DIR | No | Custom path for persistent Chrome profile (Google login cookies). Defaults to `data/chrome-profile/`. For deployment, set to a writable directory on the host. |
 
 ## Local Setup
 
@@ -111,12 +112,31 @@ Open:
 http://localhost:3000
 ```
 
+## Google Account Setup (One-Time)
+
+For the bot to join Google Meet calls, it needs a signed-in Google account. Google blocks anonymous/automated browsers from joining meetings.
+
+Run the setup command once:
+
+```bash
+npm run setup:profile
+```
+
+This opens a browser window where you sign into Google. After logging in, close the window. The session is saved to `data/chrome-profile/` and reused automatically on every bot run.
+
+Tips:
+
+- Use a dedicated Google account for the bot (recommended) or your personal account.
+- The profile persists across restarts — you only need to do this once.
+- For deployment, copy the profile directory to the server or re-run setup on the host.
+
 ## Scripts
 
 ```bash
 npm run dev
 npm run build
 npm run start
+npm run setup:profile  # One-time Google account login for the bot
 npm run test
 npm run test:e2e
 npm run test:all
