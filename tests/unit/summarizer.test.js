@@ -1,4 +1,5 @@
 import { summarizeTranscript } from "@/lib/server/summarizer";
+import { resetConfig } from "@/lib/server/config";
 
 describe("summarizeTranscript", () => {
   const originalGemini = process.env.GEMINI_API_KEY;
@@ -7,6 +8,7 @@ describe("summarizeTranscript", () => {
   beforeEach(() => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.OPENAI_API_KEY;
+    resetConfig();
   });
 
   afterAll(() => {

@@ -1,40 +1,51 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { resetConfig } from "@/lib/server/config";
 
-const launch = vi.fn();
+const mockLaunchPersistentContext = vi.fn();
 
-vi.mock("playwright", () => ({
+vi.mock("playwright-extra", () => ({
   chromium: {
-    launch
+    use: vi.fn(),
+    launchPersistentContext: (...args) => mockLaunchPersistentContext(...args)
   }
 }));
 
+vi.mock("puppeteer-extra-plugin-stealth", () => ({
+  default: vi.fn(() => ({}))
+}));
+
 describe("meetBot strict/fallback behavior", () => {
-  const originalForceSimulation = process.env.MEETSCRIBE_FORCE_SIMULATION;
-  const originalAllowFallback = process.env.MEETSCRIBE_ALLOW_SIMULATION_FALLBACK;
+  const originalEnv = { ...process.env };
 
   beforeEach(() => {
     vi.resetModules();
-    launch.mockReset();
-    delete process.env.MEETSCRIBE_FORCE_SIMULATION;
-    delete process.env.MEETSCRIBE_ALLOW_SIMULATION_FALLBACK;
+    mockLaunchPersistentContext.mockReset();
+    // Clear all MEETSCRIBE env vars.
+    Object.keys(process.env).forEach((key) => {
+      if (key.startsWith("MEETSCRIBE_")) {
+        delete process.env[key];
+      }
+    });
+    resetConfig();
   });
 
   afterEach(() => {
-    if (originalForceSimulation === undefined) {
-      delete process.env.MEETSCRIBE_FORCE_SIMULATION;
-    } else {
-      process.env.MEETSCRIBE_FORCE_SIMULATION = originalForceSimulation;
-    }
-
-    if (originalAllowFallback === undefined) {
-      delete process.env.MEETSCRIBE_ALLOW_SIMULATION_FALLBACK;
-    } else {
-      process.env.MEETSCRIBE_ALLOW_SIMULATION_FALLBACK = originalAllowFallback;
-    }
+    // Restore original env.
+    Object.keys(process.env).forEach((key) => {
+      if (key.startsWith("MEETSCRIBE_")) {
+        delete process.env[key];
+      }
+    });
+    Object.entries(originalEnv).forEach(([key, value]) => {
+      if (key.startsWith("MEETSCRIBE_") && value !== undefined) {
+        process.env[key] = value;
+      }
+    });
+    resetConfig();
   });
 
   it("throws when real browser launch fails and fallback is disabled", async () => {
-    launch.mockRejectedValueOnce(new Error("browser launch failed"));
+    mockLaunchPersistentContext.mockRejectedValueOnce(new Error("browser launch failed"));
     const { joinMeetAndCaptureTranscript } = await import("@/lib/server/meetBot");
 
     await expect(
@@ -51,7 +62,8 @@ describe("meetBot strict/fallback behavior", () => {
 
   it("falls back to simulation when explicitly enabled", async () => {
     process.env.MEETSCRIBE_ALLOW_SIMULATION_FALLBACK = "true";
-    launch.mockRejectedValueOnce(new Error("browser launch failed"));
+    resetConfig();
+    mockLaunchPersistentContext.mockRejectedValueOnce(new Error("browser launch failed"));
     const { joinMeetAndCaptureTranscript } = await import("@/lib/server/meetBot");
 
     const chunks = [];

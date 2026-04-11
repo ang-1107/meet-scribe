@@ -1,0 +1,41 @@
+# Meet Scribe Configuration
+# Non-secret settings for the bot, transcription, and simulation.
+# API keys (secrets) remain in .env.local — see .env.example.
+
+bot:
+  # Display name shown in Google Meet participant list
+  name: "Meet Scribe Bot"
+
+  # Maximum listening duration in seconds (default 5 minutes)
+  durationSeconds: 600
+
+  # Run Chromium in headless mode.
+  # false = visible browser (recommended for local debugging)
+  # true = no visible window (required for server deployment)
+  headless: false
+
+  # Path to the persistent Chrome profile that stores Google login cookies.
+  # Relative paths are resolved from project root.
+  chromeProfileDir: "data/chrome-profile"
+
+transcription:
+  # Audio chunk interval in seconds.
+  # Each chunk is recorded then transcribed by Whisper.
+  # Larger = more context per chunk (better accuracy), but higher latency.
+  # Smaller = faster results, but Whisper has less context.
+  chunkIntervalSeconds: 30
+
+  # Whisper ONNX model for local transcription.
+  # Smaller models are faster; larger models are more accurate.
+  # Options:
+  #   Xenova/whisper-tiny.en   — fastest, lowest accuracy (~75MB)
+  #   Xenova/whisper-base.en   — good balance (~150MB)  [default]
+  #   Xenova/whisper-small.en  — slower, better accuracy (~500MB)
+  whisperModel: "Xenova/whisper-base.en"
+
+simulation:
+  # Skip real Meet automation entirely and use a demo transcript.
+  force: false
+
+  # Fall back to simulation transcript only when real join/capture fails.
+  allowFallback: false

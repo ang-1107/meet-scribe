@@ -10,7 +10,11 @@ const nextConfig = {
       "puppeteer-extra-plugin-stealth",
       "puppeteer-extra-plugin",
       "clone-deep",
-      "merge-deep"
+      "merge-deep",
+      "@xenova/transformers",
+      "onnxruntime-node",
+      "sharp",
+      "js-yaml"
     ]
   }
 };

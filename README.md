@@ -1,13 +1,13 @@
 # Meet Scribe
 
-Meet Scribe is a web application that joins a Google Meet from a shared link, captures meeting transcript text, and generates a structured AI summary with key outcomes.
+Meet Scribe is a web application that joins a Google Meet from a shared link, captures the conversation audio, transcribes it locally using AI, and generates a structured summary with key outcomes.
 
-This project was built for the Summer Internship task and prioritizes a working, demonstrable MVP with clear extension points for production hardening.
+Built for the Summer Internship task. Prioritizes a working, demonstrable MVP with clear extension points for production hardening.
 
 ## Core Capabilities
 
-- Join a Google Meet session using a bot workflow.
-- Capture transcript content from live captions (or use simulation mode for safe demos).
+- Join a Google Meet session using an automated bot with stealth anti-detection.
+- Capture meeting audio via WebRTC interception and transcribe locally using Whisper (Transformers.js) — no external transcription API required.
 - Generate AI summaries with consistent structure:
 	- overall summary
 	- key discussion points
@@ -17,16 +17,18 @@ This project was built for the Summer Internship task and prioritizes a working,
 	- participants (when detectable)
 - Stream real-time session status updates in the dashboard.
 - Persist and review previous sessions.
+- Simulation mode for safe demos without a live meeting.
 
-## MVP Scope
+## How It Works
 
-End-to-end flow:
-
-1. User submits a Meet link.
-2. Backend creates a bot session.
-3. Bot joins and captures transcript chunks.
-4. Transcript is summarized by an LLM.
-5. Dashboard displays status, transcript, and final summary.
+```text
+1. User submits a Meet link in the dashboard.
+2. Bot launches a stealth Chromium browser with a saved Google account session.
+3. Bot joins the meeting, intercepts WebRTC audio from other participants.
+4. Audio chunks (configurable interval, default 30s) are transcribed locally by Whisper.
+5. Transcript is summarized by Gemini/OpenAI LLM.
+6. Dashboard displays live status, transcript chunks, and final summary.
+```
 
 ## Architecture
 
@@ -40,9 +42,12 @@ Backend Pipeline
 	Session Created -> Joining -> Listening -> Transcribing -> Summarizing -> Completed
 
 Services
-	- Meet Bot: Playwright (Chromium)
+	- Meet Bot: Playwright + stealth plugin (Chromium)
+	- Audio Capture: WebRTC interception -> raw 16kHz PCM
+	- Transcription: Whisper via Transformers.js (local, free, no API key)
 	- Summarizer: Gemini or OpenAI (fallback: local heuristic summary)
 	- Storage: local JSON session store
+	- Configuration: config.yaml + .env.local (secrets only)
 ```
 
 ## Tech Stack
@@ -51,9 +56,12 @@ Services
 |---|---|
 | Frontend | Next.js 14 (App Router), React 18 |
 | Backend | Next.js API routes (Node runtime) |
-| Meet Automation | Playwright |
+| Meet Automation | Playwright + playwright-extra stealth |
+| Audio Capture | WebRTC interception (raw PCM) |
+| Transcription | Whisper via @xenova/transformers (local, free) |
 | AI Summarization | Gemini API or OpenAI API |
 | Realtime | Server-Sent Events (SSE) |
+| Configuration | YAML (config.yaml) + .env (secrets) |
 | Persistence | JSON file store |
 
 ## Repository Structure
@@ -65,11 +73,17 @@ app/
 	layout.js
 	page.js
 lib/server/
-	events.js
-	meetBot.js
-	pipeline.js
-	store.js
-	summarizer.js
+	audioCapture.js    # WebRTC audio interception
+	config.js          # YAML + env config loader
+	events.js          # SSE event publishing
+	meetBot.js         # Stealth bot: join, capture, transcribe
+	pipeline.js        # Session lifecycle orchestration
+	store.js           # JSON session persistence
+	summarizer.js      # LLM summarization (Gemini/OpenAI/fallback)
+	transcriber.js     # Local Whisper transcription
+scripts/
+	setupProfile.mjs   # One-time Google account login
+config.yaml            # All non-secret configuration
 data/
 tests/
 	unit/
@@ -77,20 +91,42 @@ tests/
 	e2e/
 ```
 
-## Environment Variables
+## Configuration
 
-Create `.env.local` from `.env.example`.
+Meet Scribe uses a two-layer configuration system:
+
+- **`config.yaml`** — all non-secret settings (bot name, duration, chunk interval, Whisper model, etc.)
+- **`.env.local`** — API keys only (secrets that should never be committed)
+
+### config.yaml
+
+All tunable parameters with defaults and documentation. Key sections:
+
+| Section | Key | Default | Description |
+|---|---|---|---|
+| `bot` | `name` | `"Meet Scribe Bot"` | Display name in Google Meet |
+| `bot` | `durationSeconds` | `300` | Max listening duration |
+| `bot` | `headless` | `false` | Headless browser mode |
+| `bot` | `chromeProfileDir` | `"data/chrome-profile"` | Google login profile path |
+| `transcription` | `chunkIntervalSeconds` | `30` | Audio chunk size for Whisper |
+| `transcription` | `whisperModel` | `"Xenova/whisper-base.en"` | Whisper ONNX model |
+| `simulation` | `force` | `false` | Skip real Meet, use demo transcript |
+| `simulation` | `allowFallback` | `false` | Fall back to simulation on failure |
+
+### .env.local
+
+Copy from `.env.example`:
+
+```bash
+cp .env.example .env.local
+```
 
 | Variable | Required | Description |
 |---|---|---|
-| GEMINI_API_KEY | No | Gemini key for LLM summarization |
-| OPENAI_API_KEY | No | OpenAI key for LLM summarization fallback |
-| MEETSCRIBE_FORCE_SIMULATION | No | `true` to skip real Meet automation and run a simulation transcript |
-| MEETSCRIBE_ALLOW_SIMULATION_FALLBACK | No | `true` to use simulation transcript only when real join/capture fails |
-| MEETSCRIBE_HEADLESS | No | `false` runs visible browser (recommended for local Meet debugging), `true` runs headless |
-| MEETSCRIBE_DEFAULT_BOT_NAME | No | Default bot display name |
-| MEETSCRIBE_DEFAULT_DURATION_SECONDS | No | Default capture duration |
-| MEETSCRIBE_CHROME_PROFILE_DIR | No | Custom path for persistent Chrome profile (Google login cookies). Defaults to `data/chrome-profile/`. For deployment, set to a writable directory on the host. |
+| `GEMINI_API_KEY` | Recommended | Gemini key for AI summarization |
+| `OPENAI_API_KEY` | No | OpenAI key as summarization fallback |
+
+> **Note:** Environment variables can still override `config.yaml` values for backward compatibility and deployment flexibility (e.g., `MEETSCRIBE_HEADLESS=true`).
 
 ## Local Setup
 
@@ -107,27 +143,23 @@ npm install
 
 ### Step 2: Set up environment variables
 
-Copy `.env.example` to `.env.local` and fill in the required values:
-
 ```bash
 cp .env.example .env.local
 ```
 
-At minimum, add a `GEMINI_API_KEY` (or `OPENAI_API_KEY`) for AI summarization.
+Add your `GEMINI_API_KEY` (or `OPENAI_API_KEY`) for AI summarization.
 
 ### Step 3: Sign in with a Google account (one-time)
 
-Google Meet blocks anonymous and automation-detected browsers from joining calls. The bot needs a real Google account session to join meetings successfully.
-
-Run the setup command:
+Google Meet blocks anonymous and automation-detected browsers. The bot needs a real Google account session to join meetings.
 
 ```bash
 npm run setup:profile
 ```
 
-A browser window will open to Google Accounts. Sign in with the Google account you want the bot to use (a dedicated account is recommended). After signing in, close the browser window. The session is saved to `data/chrome-profile/` and reused automatically on every future bot run.
+A browser window opens to Google Accounts. Sign in with the account you want the bot to use (dedicated account recommended). Close the window when done. The session is saved to `data/chrome-profile/` and reused on every run.
 
-> **Note:** You only need to do this once. The profile persists across app restarts. For deployment, copy the `data/chrome-profile/` directory to the server or re-run the setup on the host.
+> **Note:** You only need to do this once. The profile persists across restarts. For deployment, copy `data/chrome-profile/` to the server or re-run setup on the host.
 
 ### Step 4: Start the app
 
@@ -135,33 +167,31 @@ A browser window will open to Google Accounts. Sign in with the Google account y
 npm run dev
 ```
 
-Open:
+Open `http://localhost:3000`.
 
-```text
-http://localhost:3000
-```
+### First run: Whisper model download
+
+On the first transcription, the Whisper model (~150 MB for `base.en`) is downloaded automatically from Hugging Face and cached locally. Subsequent runs use the cached model.
 
 ## Scripts
 
 ```bash
-npm run dev
-npm run build
-npm run start
-npm run setup:profile  # One-time Google account login for the bot
-npm run test
-npm run test:e2e
-npm run test:all
+npm run dev             # Start development server
+npm run build           # Production build
+npm run start           # Start production server
+npm run setup:profile   # One-time Google account login for the bot
+npm run test            # Run unit + integration tests
+npm run test:e2e        # Run end-to-end browser tests
+npm run test:all        # Run all tests
 ```
 
 ## Testing and Verification
 
 Automated test layers:
 
-- Unit tests (Vitest): summarizer fallback behavior and store operations.
-- Integration tests (Vitest): API session route behavior and full pipeline completion in simulation mode.
-- E2E tests (Playwright): user starts a session, sees transcript updates, and receives final summary.
-
-Run commands:
+- Unit tests (Vitest): config loader, transcriber, summarizer fallback, store operations.
+- Integration tests (Vitest): API session route behavior, full pipeline in simulation mode.
+- E2E tests (Playwright): user starts a session, sees transcript updates, receives final summary.
 
 ```bash
 npm run test
@@ -187,10 +217,12 @@ npm run build
 
 ## Deployment Guidance
 
-Recommended submission deployment split:
+The bot requires a Chromium-capable server runtime (not serverless). Recommended setup:
 
-1. Next.js app on Vercel.
-2. Bot execution on Chromium-capable runtime (Render or Cloud Run).
+1. Deploy the full Next.js app on a Chromium-capable host: **Render**, **Cloud Run**, or a VM.
+2. Ensure the `data/chrome-profile/` directory is writable and persistent.
+3. Set `bot.headless: true` in `config.yaml` for server environments.
+4. Set `GEMINI_API_KEY` in the host's environment variables.
 
 For production readiness, migrate persistence to managed storage:
 
@@ -199,18 +231,19 @@ For production readiness, migrate persistence to managed storage:
 
 ## Requirement Coverage Matrix
 
-- Meet Integration: implemented via Playwright bot join pipeline.
-- Audio/Transcript Processing: transcript capture from Meet captions with chunk updates.
-- AI Summarization: structured summary output from Gemini/OpenAI with fallback.
-- Responsive UI: dashboard for session control, live status, transcript, summary, and history.
-- Bonus Implemented: real-time status streaming.
+- **Meet Integration**: Playwright stealth bot with persistent Google auth profile.
+- **Audio/Transcript Processing**: WebRTC audio capture → local Whisper transcription (no external API needed).
+- **AI Summarization**: structured summary output from Gemini/OpenAI with local heuristic fallback.
+- **Responsive UI**: dashboard for session control, live status, transcript, summary, and history.
+- **Bonus Implemented**: real-time status streaming via SSE.
 
 ## Known Constraints
 
 - Google Meet UI selectors can change and may require periodic maintenance.
-- Reliable bot joining can depend on meeting permissions, lobby approval, and host policies.
-- Caption capture quality depends on meeting caption availability and audio clarity.
+- Reliable bot joining depends on meeting permissions, lobby approval, and host policies.
+- Whisper transcription runs on CPU by default; larger models are slower but more accurate.
+- The stealth approach to joining Meet is inherently a cat-and-mouse game with Google's detection.
 
 ## GenAI Usage Statement (Submission-Ready)
 
-I used GenAI in two ways: first, to accelerate engineering work such as structuring the pipeline, generating baseline UI/API code, and debugging asynchronous status handling; second, inside the product itself to transform transcript text into a consistent meeting summary format (summary, key points, decisions, action items, and open questions). This reduced development time while improving output consistency.
+I used GenAI in three ways: first, to accelerate engineering work such as structuring the pipeline, generating baseline UI/API code, and debugging asynchronous handling; second, inside the product itself where Whisper (via Transformers.js) transcribes meeting audio locally and Gemini/OpenAI transforms the transcript into a structured summary; third, the entire transcription-to-summary pipeline demonstrates end-to-end GenAI integration — from speech recognition to natural language understanding — without relying on paid transcription APIs.
