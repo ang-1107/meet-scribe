@@ -1,117 +1,184 @@
 # Meet Scribe
 
-Meet Scribe is an MVP web app that can:
+Meet Scribe is a web application that joins a Google Meet from a shared link, captures meeting transcript text, and generates a structured AI summary with key outcomes.
 
-1. accept a Google Meet link,
-2. launch a bot session,
-3. capture transcript text (from live Meet captions or simulation fallback),
-4. generate an AI summary,
-5. display and persist session history in a clean dashboard.
+This project was built for the Summer Internship task and prioritizes a working, demonstrable MVP with clear extension points for production hardening.
+
+## Core Capabilities
+
+- Join a Google Meet session using a bot workflow.
+- Capture transcript content from live captions (or use simulation mode for safe demos).
+- Generate AI summaries with consistent structure:
+	- overall summary
+	- key discussion points
+	- decisions made
+	- action items
+	- open questions
+	- participants (when detectable)
+- Stream real-time session status updates in the dashboard.
+- Persist and review previous sessions.
+
+## MVP Scope
+
+End-to-end flow:
+
+1. User submits a Meet link.
+2. Backend creates a bot session.
+3. Bot joins and captures transcript chunks.
+4. Transcript is summarized by an LLM.
+5. Dashboard displays status, transcript, and final summary.
+
+## Architecture
+
+```text
+Frontend (Next.js)
+	-> POST /api/sessions
+	-> GET /api/sessions/:id/events (SSE)
+	-> GET /api/sessions, /api/sessions/:id
+
+Backend Pipeline
+	Session Created -> Joining -> Listening -> Transcribing -> Summarizing -> Completed
+
+Services
+	- Meet Bot: Playwright (Chromium)
+	- Summarizer: Gemini or OpenAI (fallback: local heuristic summary)
+	- Storage: local JSON session store
+```
 
 ## Tech Stack
 
-- Frontend: Next.js App Router (React)
-- Backend: Next.js API routes (Node runtime)
-- Meet automation: Playwright (Chromium)
-- AI summarization: Gemini API or OpenAI API (with local fallback)
-- Persistence: local JSON store (`data/sessions.json`)
-- Real-time updates: Server-Sent Events (SSE)
+| Area | Choice |
+|---|---|
+| Frontend | Next.js 14 (App Router), React 18 |
+| Backend | Next.js API routes (Node runtime) |
+| Meet Automation | Playwright |
+| AI Summarization | Gemini API or OpenAI API |
+| Realtime | Server-Sent Events (SSE) |
+| Persistence | JSON file store |
 
-## Project Structure
+## Repository Structure
 
-- `app/page.js`: main dashboard UI
-- `app/api/sessions/route.js`: create/list sessions
-- `app/api/sessions/[id]/route.js`: fetch one session
-- `app/api/sessions/[id]/events/route.js`: SSE stream for live updates
-- `app/api/sessions/[id]/stop/route.js`: stop bot session
-- `lib/server/meetBot.js`: Playwright meet join + transcript capture
-- `lib/server/summarizer.js`: LLM summarization + fallback
-- `lib/server/pipeline.js`: orchestration pipeline
-- `lib/server/store.js`: persistent session storage
-- `lib/server/events.js`: in-process event bus
+```text
+app/
+	api/sessions/
+	globals.css
+	layout.js
+	page.js
+lib/server/
+	events.js
+	meetBot.js
+	pipeline.js
+	store.js
+	summarizer.js
+data/
+tests/
+	unit/
+	integration/
+	e2e/
+```
 
 ## Environment Variables
 
-Copy `.env.example` to `.env.local` and configure:
+Create `.env.local` from `.env.example`.
 
-- `GEMINI_API_KEY`: optional, preferred summarization provider
-- `OPENAI_API_KEY`: optional, fallback summarization provider
-- `MEETSCRIBE_FORCE_SIMULATION`: `true` to skip Playwright and run demo transcript mode
-- `MEETSCRIBE_DEFAULT_BOT_NAME`: default bot display name
-- `MEETSCRIBE_DEFAULT_DURATION_SECONDS`: default capture window in seconds
+| Variable | Required | Description |
+|---|---|---|
+| GEMINI_API_KEY | No | Gemini key for LLM summarization |
+| OPENAI_API_KEY | No | OpenAI key for LLM summarization fallback |
+| MEETSCRIBE_FORCE_SIMULATION | No | `true` to skip real Meet automation and run a simulation transcript |
+| MEETSCRIBE_ALLOW_SIMULATION_FALLBACK | No | `true` to use simulation transcript only when real join/capture fails |
+| MEETSCRIBE_DEFAULT_BOT_NAME | No | Default bot display name |
+| MEETSCRIBE_DEFAULT_DURATION_SECONDS | No | Default capture duration |
 
-## Run Locally
+## Local Setup
 
-1. Install dependencies:
+Prerequisites:
+
+- Node.js LTS (tested with Node 24)
+- npm
+
+Install and run:
 
 ```bash
 npm install
-```
-
-2. Start development server:
-
-```bash
 npm run dev
 ```
 
-3. Open:
+Open:
 
 ```text
 http://localhost:3000
 ```
 
-## MVP Workflow
+## Scripts
 
-1. Paste Meet link and click Start Bot.
-2. Backend creates a session and starts pipeline asynchronously.
-3. Bot attempts to join Meet and extract caption text.
-4. Transcript is appended live and streamed to frontend via SSE.
-5. Transcript is summarized using Gemini/OpenAI/local fallback.
-6. Final summary and transcript stay available in history.
+```bash
+npm run dev
+npm run build
+npm run start
+npm run test
+npm run test:e2e
+npm run test:all
+```
 
-## Status Stages
+## Testing and Verification
 
-- `created`
-- `joining`
-- `in_lobby`
-- `joined`
-- `listening`
-- `transcribing`
-- `summarizing`
-- `completed`
-- `stopping`
-- `stopped`
-- `failed`
+Automated test layers:
 
-## Important Notes About Meet Capture
+- Unit tests (Vitest): summarizer fallback behavior and store operations.
+- Integration tests (Vitest): API session route behavior and full pipeline completion in simulation mode.
+- E2E tests (Playwright): user starts a session, sees transcript updates, and receives final summary.
 
-- In real mode, the bot relies on Google Meet UI selectors and caption DOM nodes.
-- Meet UI can change, so selectors may need periodic updates.
-- If Playwright fails or no captions are detected, the app automatically falls back to simulation mode unless force simulation is explicitly disabled.
-- For stable production capture, run the bot worker in a dedicated container (Cloud Run/Render) with controlled browser dependencies.
+Run commands:
 
-## Deployment Recommendation
+```bash
+npm run test
+npm run test:e2e
+npm run test:all
+```
 
-For assignment submission, split deployment into two parts:
+Build verification:
 
-1. Frontend/API on Vercel (Next.js app)
-2. Bot worker on Render or Cloud Run (Chromium-friendly runtime)
+```bash
+npm run build
+```
 
-Then move persistence from local JSON to managed storage:
+## API Endpoints
 
-- Firestore/Postgres for metadata
-- S3/GCS for transcript/audio artifacts
+| Method | Route | Purpose |
+|---|---|---|
+| GET | `/api/sessions` | List sessions |
+| POST | `/api/sessions` | Create a session and trigger pipeline |
+| GET | `/api/sessions/:id` | Fetch one session |
+| GET | `/api/sessions/:id/events` | Stream live session updates (SSE) |
+| POST | `/api/sessions/:id/stop` | Request stop for active session |
 
-## Assignment Requirement Coverage
+## Deployment Guidance
 
-- Meet integration: implemented with Playwright join flow in `lib/server/meetBot.js`
-- Transcript processing: live caption extraction and streamed transcript chunks
-- AI summary: Gemini/OpenAI integration with structured output
-- Responsive UI: single-page dashboard with start/stop, live status, transcript, summary, history
-- Bonus: real-time status updates using SSE
+Recommended submission deployment split:
 
-## GenAI Usage Explanation (for submission)
+1. Next.js app on Vercel.
+2. Bot execution on Chromium-capable runtime (Render or Cloud Run).
 
-Example concise statement you can use:
+For production readiness, migrate persistence to managed storage:
 
-"I used GenAI during development to accelerate architecture decisions, generate baseline API and UI code, refine prompt templates for structured meeting summaries, and troubleshoot edge cases in asynchronous bot/session orchestration. I also used LLM prompting in-app to transform raw transcript text into consistent outputs: short summary, key points, decisions, action items, and open questions."
+- metadata: Firestore/Postgres
+- artifacts: S3 or GCS
+
+## Requirement Coverage Matrix
+
+- Meet Integration: implemented via Playwright bot join pipeline.
+- Audio/Transcript Processing: transcript capture from Meet captions with chunk updates.
+- AI Summarization: structured summary output from Gemini/OpenAI with fallback.
+- Responsive UI: dashboard for session control, live status, transcript, summary, and history.
+- Bonus Implemented: real-time status streaming.
+
+## Known Constraints
+
+- Google Meet UI selectors can change and may require periodic maintenance.
+- Reliable bot joining can depend on meeting permissions, lobby approval, and host policies.
+- Caption capture quality depends on meeting caption availability and audio clarity.
+
+## GenAI Usage Statement (Submission-Ready)
+
+I used GenAI in two ways: first, to accelerate engineering work such as structuring the pipeline, generating baseline UI/API code, and debugging asynchronous status handling; second, inside the product itself to transform transcript text into a consistent meeting summary format (summary, key points, decisions, action items, and open questions). This reduced development time while improving output consistency.

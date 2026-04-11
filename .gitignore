@@ -210,6 +210,12 @@ pnpm-debug.log*
 
 # App runtime data
 data/sessions.json
+.e2e-data/
+
+# Test artifacts
+test-results/
+playwright-report/
+coverage/
 
 # Keep application source in lib/ tracked for this project.
 !lib/
@@ -224,3 +230,4 @@ __marimo__/
 
 assignment.txt
 plan.md
+.env.local
