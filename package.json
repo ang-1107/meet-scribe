@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postinstall": "node scripts/postinstallPlaywright.mjs",
     "start": "node scripts/startRailway.mjs",
     "start:next": "next start",
     "setup:profile": "node scripts/setupProfile.mjs",
