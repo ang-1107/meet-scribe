@@ -6,7 +6,7 @@ bot:
   # Display name shown in Google Meet participant list
   name: "Meet Scribe Bot"
 
-  # Maximum listening duration in seconds (default 5 minutes)
+  # Maximum listening duration in seconds (default 10 minutes)
   durationSeconds: 600
 
   # Run Chromium in headless mode.

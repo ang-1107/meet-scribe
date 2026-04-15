@@ -14,7 +14,7 @@ Meet Scribe is a web application that joins a Google Meet from a shared link, ca
 	- open questions
 	- participants (when detectable)
 - Stream real-time session status updates in the dashboard.
-- Authenticate users and isolate sessions per user.
+- Authenticate users with Firebase (Google or email/password) and isolate sessions per user.
 - Persist and review previous sessions.
 - Simulation mode for safe demos without a live meeting.
 
@@ -45,7 +45,7 @@ Services
 	- Audio Capture: WebRTC interception -> raw 16kHz PCM
 	- Transcription: Whisper via Transformers.js (local, free, no API key)
 	- Summarizer: Gemini or OpenAI (fallback: local heuristic summary)
-	- Auth: Firebase Auth (Google sign-in)
+	- Auth: Firebase Auth (Google and email/password sign-in)
 	- Storage: Firestore (preferred) with local JSON fallback
 	- Configuration: config.yaml + .env.local (secrets only)
 ```
@@ -227,67 +227,6 @@ npm run build
 | GET | `/api/sessions/:id` | Fetch one session (owner only) |
 | GET | `/api/sessions/:id/events?token=...` | Stream live session updates (owner only) |
 | POST | `/api/sessions/:id/stop` | Request stop for owned active session |
-
-## Deployment Guidance
-
-The app can be deployed in two modes:
-
-- **Real bot mode (recommended):** Railway (Chromium-capable Node runtime + persistent storage).
-- **Demo mode (free/easiest):** Vercel with simulation mode enabled.
-
-### Option A: Railway (Real Meet bot)
-
-This is the best fit if you want actual Meet joining and transcription.
-
-1. Push your repository to GitHub.
-2. Create a Railway project and choose **Deploy from GitHub**.
-3. Select this repository.
-4. Set build/start commands:
-	- Build command: `npm install && npm run build`
-	- Start command: `npm run start`
-5. Add environment variables in Railway:
-	- `NODE_ENV=production`
-	- `GEMINI_API_KEY=...` (or `OPENAI_API_KEY=...`)
-	- Firebase client vars: `NEXT_PUBLIC_FIREBASE_*`
-	- Firebase Admin var: `FIREBASE_SERVICE_ACCOUNT_JSON=...`
-6. Keep these non-secret settings in `config.yaml`:
-	- `bot.headless: true`
-	- `simulation.force: false`
-	- `simulation.allowFallback: false`
-7. Ensure persistent storage for runtime data:
-	- `data/chrome-profile/` (Google login session)
-	- `data/sessions.json` (session history)
-8. Prime the Google profile used by the bot:
-	- Locally run `npm run setup:profile` once.
-	- Copy `data/chrome-profile/` to the deployed persistent volume.
-9. Redeploy and open the Railway URL.
-10. Validate with a real Meet link where host admission is possible.
-
-Notes:
-
-- Railway free usage is typically trial/credit-based (limits can change).
-- If profile persistence is lost, bot join will fail until profile is re-seeded.
-
-### Option B: Vercel (Demo-only / simulation)
-
-Use this for a free public demo quickly when real browser automation is not required.
-
-1. Import the GitHub repo into Vercel.
-2. Framework preset: **Next.js**.
-3. Add environment variable: `MEETSCRIBE_FORCE_SIMULATION=true`.
-4. Optionally set `GEMINI_API_KEY` for real summarization on demo transcript.
-5. Deploy and test the dashboard flow.
-
-Important:
-
-- Vercel serverless is not reliable for full Playwright + persistent Google profile bot execution.
-- For real Meet joining, use Option A.
-
-### Recommended Submission Strategy
-
-1. Share a live URL from Railway (real bot mode) if available.
-2. Keep a Vercel simulation deployment as backup demo link.
-3. In your submission note, explicitly mention which link is real bot vs simulation.
 
 ## Requirement Coverage Matrix
 

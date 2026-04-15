@@ -16,7 +16,12 @@ export default defineConfig({
     reuseExistingServer: true,
     env: {
       MEETSCRIBE_FORCE_SIMULATION: "true",
-      MEETSCRIBE_DATA_DIR: ".e2e-data"
+      MEETSCRIBE_DATA_DIR: ".e2e-data",
+      FIREBASE_ALLOW_DEV_AUTH: "true",
+      NEXT_PUBLIC_FIREBASE_API_KEY: "",
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "",
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: "",
+      NEXT_PUBLIC_FIREBASE_APP_ID: ""
     }
   }
 });

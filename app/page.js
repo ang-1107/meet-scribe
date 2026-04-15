@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { GoogleAuthProvider, onIdTokenChanged, signInWithPopup, signOut } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  onIdTokenChanged,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut
+} from "firebase/auth";
 import { getFirebaseClientAuth, isFirebaseClientConfigured } from "@/lib/firebase/client";
 
 const FINAL_STATES = new Set(["completed", "failed", "stopped"]);
@@ -52,6 +59,9 @@ export default function HomePage() {
   const [authLabel, setAuthLabel] = useState("");
   const [authMode, setAuthMode] = useState("none");
   const [authBusy, setAuthBusy] = useState(false);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authFormMode, setAuthFormMode] = useState("signin");
 
   const activeSessionId = activeSession?.id || null;
   const firebaseEnabled = isFirebaseClientConfigured();
@@ -107,6 +117,36 @@ export default function HomePage() {
       await signInWithPopup(auth, provider);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleEmailPasswordAuth(event) {
+    event.preventDefault();
+
+    const auth = getFirebaseClientAuth();
+    if (!auth) {
+      setError("Firebase client is not configured.");
+      return;
+    }
+
+    if (!authEmail.trim() || !authPassword) {
+      setError("Email and password are required.");
+      return;
+    }
+
+    setError("");
+    setAuthBusy(true);
+    try {
+      if (authFormMode === "signup") {
+        await createUserWithEmailAndPassword(auth, authEmail.trim(), authPassword);
+      } else {
+        await signInWithEmailAndPassword(auth, authEmail.trim(), authPassword);
+      }
+      setAuthPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Email/password authentication failed.");
     } finally {
       setAuthBusy(false);
     }
@@ -295,11 +335,57 @@ export default function HomePage() {
           </p>
         )}
         {authMode === "firebase" && !authToken && (
-          <div className="button-row">
-            <button type="button" onClick={signInWithGoogle} disabled={authBusy}>
-              {authBusy ? "Signing in..." : "Sign in with Google"}
-            </button>
-          </div>
+          <>
+            <div className="button-row" style={{ marginBottom: "0.75rem" }}>
+              <button type="button" onClick={signInWithGoogle} disabled={authBusy}>
+                {authBusy ? "Signing in..." : "Sign in with Google"}
+              </button>
+            </div>
+            <form onSubmit={handleEmailPasswordAuth}>
+              <div className="row">
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={authEmail}
+                    onChange={(event) => setAuthEmail(event.target.value)}
+                    autoComplete="email"
+                    required
+                  />
+                </label>
+                <label>
+                  Password
+                  <input
+                    type="password"
+                    value={authPassword}
+                    onChange={(event) => setAuthPassword(event.target.value)}
+                    autoComplete={authFormMode === "signup" ? "new-password" : "current-password"}
+                    minLength={6}
+                    required
+                  />
+                </label>
+              </div>
+              <div className="button-row">
+                <button type="submit" disabled={authBusy}>
+                  {authBusy
+                    ? authFormMode === "signup"
+                      ? "Creating account..."
+                      : "Signing in..."
+                    : authFormMode === "signup"
+                      ? "Create account"
+                      : "Sign in with Email"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={authBusy}
+                  onClick={() => setAuthFormMode((current) => (current === "signup" ? "signin" : "signup"))}
+                >
+                  {authFormMode === "signup" ? "Use existing account" : "Create new account"}
+                </button>
+              </div>
+            </form>
+          </>
         )}
         {authMode === "firebase" && authToken && (
           <div className="button-row">

@@ -24,8 +24,6 @@ import { fileURLToPath } from "url";
 
 chromium.use(StealthPlugin());
 
-/* ------------------------------------------------------------------ */
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -50,7 +48,6 @@ const ANTI_DETECT_ARGS = [
 const REALISTIC_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
 
-/* ------------------------------------------------------------------ */
 
 async function main() {
   const profileDir = resolveProfileDir();
@@ -58,18 +55,18 @@ async function main() {
 
   console.log("");
   console.log("╔══════════════════════════════════════════════════════════╗");
-  console.log("║         Meet Scribe — Google Account Setup              ║");
+  console.log("║         Meet Scribe — Google Account Setup               ║");
   console.log("╠══════════════════════════════════════════════════════════╣");
-  console.log("║                                                        ║");
-  console.log("║  A browser window will open to Google Accounts.        ║");
-  console.log("║  Please sign in with the Google account you want       ║");
-  console.log("║  the bot to use when joining meetings.                 ║");
-  console.log("║                                                        ║");
-  console.log("║  After successful sign-in, the session will be saved   ║");
-  console.log("║  so the bot stays logged in for all future runs.       ║");
-  console.log("║                                                        ║");
-  console.log("║  Close the browser window when you're done.            ║");
-  console.log("║                                                        ║");
+  console.log("║                                                          ║");
+  console.log("║  A browser window will open to Google Accounts.          ║");
+  console.log("║  Please sign in with the Google account you want         ║");
+  console.log("║  the bot to use when joining meetings.                   ║");
+  console.log("║                                                          ║");
+  console.log("║  After successful sign-in, the session will be saved     ║");
+  console.log("║  so the bot stays logged in for all future runs.         ║");
+  console.log("║                                                          ║");
+  console.log("║  Close the browser window when you're done.              ║");
+  console.log("║                                                          ║");
   console.log("╚══════════════════════════════════════════════════════════╝");
   console.log("");
   console.log(`  Profile directory: ${profileDir}`);
