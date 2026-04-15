@@ -86,7 +86,7 @@ export default function HomePage() {
   const [authBusy, setAuthBusy] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
-  const [authFormMode, setAuthFormMode] = useState("signin");
+  const [authMethod, setAuthMethod] = useState("google");
 
   const activeSessionId = activeSession?.id || null;
   const firebaseEnabled = isFirebaseClientConfigured();
@@ -164,7 +164,7 @@ export default function HomePage() {
     setError("");
     setAuthBusy(true);
     try {
-      if (authFormMode === "signup") {
+      if (authMethod === "email-signup") {
         await createUserWithEmailAndPassword(auth, authEmail.trim(), authPassword);
       } else {
         await signInWithEmailAndPassword(auth, authEmail.trim(), authPassword);
@@ -368,55 +368,65 @@ export default function HomePage() {
           )}
           {authMode === "firebase" && !authToken && (
             <>
-              <div className="button-row" style={{ marginBottom: "0.75rem" }}>
-                <button type="button" onClick={signInWithGoogle} disabled={authBusy}>
-                  {authBusy ? "Signing in..." : "Sign in with Google"}
-                </button>
-              </div>
-              <form onSubmit={handleEmailPasswordAuth}>
-                <div className="row">
-                  <label>
-                    Email
-                    <input
-                      type="email"
-                      value={authEmail}
-                      onChange={(event) => setAuthEmail(event.target.value)}
-                      autoComplete="email"
-                      required
-                    />
-                  </label>
-                  <label>
-                    Password
-                    <input
-                      type="password"
-                      value={authPassword}
-                      onChange={(event) => setAuthPassword(event.target.value)}
-                      autoComplete={authFormMode === "signup" ? "new-password" : "current-password"}
-                      minLength={6}
-                      required
-                    />
-                  </label>
-                </div>
+              <label>
+                Sign-in method
+                <select
+                  value={authMethod}
+                  onChange={(event) => setAuthMethod(event.target.value)}
+                  disabled={authBusy}
+                >
+                  <option value="google">Google</option>
+                  <option value="email-signin">Email and password</option>
+                  <option value="email-signup">Create account</option>
+                </select>
+              </label>
+
+              {authMethod === "google" && (
                 <div className="button-row">
-                  <button type="submit" disabled={authBusy}>
-                    {authBusy
-                      ? authFormMode === "signup"
-                        ? "Creating account..."
-                        : "Signing in..."
-                      : authFormMode === "signup"
-                        ? "Create account"
-                        : "Sign in with Email"}
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary"
-                    disabled={authBusy}
-                    onClick={() => setAuthFormMode((current) => (current === "signup" ? "signin" : "signup"))}
-                  >
-                    {authFormMode === "signup" ? "Use existing account" : "Create new account"}
+                  <button type="button" onClick={signInWithGoogle} disabled={authBusy}>
+                    {authBusy ? "Signing in..." : "Continue with Google"}
                   </button>
                 </div>
-              </form>
+              )}
+
+              {authMethod !== "google" && (
+                <form onSubmit={handleEmailPasswordAuth}>
+                  <div className="row">
+                    <label>
+                      Email
+                      <input
+                        type="email"
+                        value={authEmail}
+                        onChange={(event) => setAuthEmail(event.target.value)}
+                        autoComplete="email"
+                        required
+                      />
+                    </label>
+                    <label>
+                      Password
+                      <input
+                        type="password"
+                        value={authPassword}
+                        onChange={(event) => setAuthPassword(event.target.value)}
+                        autoComplete={authMethod === "email-signup" ? "new-password" : "current-password"}
+                        minLength={6}
+                        required
+                      />
+                    </label>
+                  </div>
+                  <div className="button-row">
+                    <button type="submit" disabled={authBusy}>
+                      {authBusy
+                        ? authMethod === "email-signup"
+                          ? "Creating account..."
+                          : "Signing in..."
+                        : authMethod === "email-signup"
+                          ? "Create account"
+                          : "Sign in with Email"}
+                    </button>
+                  </div>
+                </form>
+              )}
             </>
           )}
           {authMode === "firebase" && authToken && (
