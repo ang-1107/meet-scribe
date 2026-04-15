@@ -31,7 +31,7 @@ async function run() {
     PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH || "0"
   };
 
-  if (process.platform === "linux" && process.env.MEETSCRIBE_PLAYWRIGHT_WITH_DEPS !== "false") {
+  if (process.platform === "linux" && process.env.MEETSCRIBE_PLAYWRIGHT_WITH_DEPS === "true") {
     args.push("--with-deps");
   }
 

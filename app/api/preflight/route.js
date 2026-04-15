@@ -30,18 +30,53 @@ function checkPlaywrightBinary() {
     const executablePath = chromium.executablePath();
     const executableExists = Boolean(executablePath) && exists(executablePath);
 
+    if (!executableExists) {
+      return {
+        ok: false,
+        executablePath: executablePath || null,
+        launchable: false,
+        message: "Chromium executable could not be found. Run `npx playwright install chromium` during build."
+      };
+    }
+
     return {
-      ok: executableExists,
-      executablePath: executablePath || null,
-      message: executableExists
-        ? "Chromium executable is available."
-        : "Chromium executable could not be found. Run `npx playwright install chromium` during build."
+      ok: true,
+      executablePath,
+      launchable: null,
+      message: "Chromium executable is available."
     };
   } catch (error) {
     return {
       ok: false,
       executablePath: null,
+      launchable: false,
       message: error instanceof Error ? error.message : "Unable to resolve Playwright executable path."
+    };
+  }
+}
+
+async function checkPlaywrightLaunchability() {
+  try {
+    const browser = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-dev-shm-usage"],
+      timeout: 15000
+    });
+
+    await browser.close();
+
+    return {
+      ok: true,
+      message: "Chromium launched successfully."
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Chromium launch failed.";
+    const missingSharedLib = /error while loading shared libraries|libglib-2\.0\.so\.0/i.test(message);
+
+    return {
+      ok: false,
+      missingSharedLib,
+      message
     };
   }
 }
@@ -81,16 +116,32 @@ function checkProfile() {
 
 export async function GET() {
   const config = getConfig();
-  const playwright = checkPlaywrightBinary();
+  const playwrightBinary = checkPlaywrightBinary();
+  const playwrightLaunch = playwrightBinary.ok
+    ? await checkPlaywrightLaunchability()
+    : {
+        ok: false,
+        missingSharedLib: false,
+        message: "Launch check skipped because executable is missing."
+      };
   const profile = checkProfile();
 
-  const readyForAuthenticatedMeetJoin = playwright.ok && profile.ok && profile.likelyAuthenticated;
-  const readyForAnonymousMeetJoin = playwright.ok;
+  const playwrightOk = playwrightBinary.ok && playwrightLaunch.ok;
+  const readyForAuthenticatedMeetJoin = playwrightOk && profile.ok && profile.likelyAuthenticated;
+  const readyForAnonymousMeetJoin = playwrightOk;
 
   const nextSteps = [];
 
-  if (!playwright.ok) {
+  if (!playwrightBinary.ok) {
     nextSteps.push("Install Playwright Chromium during build and set PLAYWRIGHT_BROWSERS_PATH=0.");
+  }
+
+  if (playwrightBinary.ok && !playwrightLaunch.ok) {
+    if (playwrightLaunch.missingSharedLib) {
+      nextSteps.push("Install Playwright Linux runtime libraries (for example libglib2.0-0) in the deploy image.");
+    } else {
+      nextSteps.push("Chromium binary exists but failed to launch. Check Playwright launch logs and container OS dependencies.");
+    }
   }
 
   if (!profile.ok || !profile.likelyAuthenticated) {
@@ -112,7 +163,10 @@ export async function GET() {
       readyForAuthenticatedMeetJoin
     },
     checks: {
-      playwright,
+      playwright: {
+        binary: playwrightBinary,
+        launch: playwrightLaunch
+      },
       profile,
       botConfig: {
         headless: config.bot.headless,
