@@ -2,6 +2,23 @@
 
 Meet Scribe is a web application that joins a Google Meet from a shared link, captures the conversation audio, transcribes it locally using AI, and generates a structured summary with key outcomes.
 
+Live app: https://meet-scribe.up.railway.app/
+
+## Contents
+
+- [Core Capabilities](#core-capabilities)
+- [How It Works](#how-it-works)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Repository Structure](#repository-structure)
+- [Configuration](#configuration)
+- [Quick Start](#quick-start)
+- [Scripts](#scripts)
+- [Testing and Verification](#testing-and-verification)
+- [API Endpoints](#api-endpoints)
+- [Requirement Coverage Matrix](#requirement-coverage-matrix)
+- [Known Constraints](#known-constraints)
+
 ## Core Capabilities
 
 - Join a Google Meet session using an automated bot with stealth anti-detection.
@@ -135,24 +152,32 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Yes (prod) | Firebase project ID |
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | Yes (prod) | Firebase app ID |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Yes (prod) | Firebase Admin service account JSON string |
+| `FIREBASE_PRIVATE_KEY_BASE64` | Optional | Base64-encoded private key (safer for Railway than multiline text) |
 | `FIREBASE_ALLOW_DEV_AUTH` | No | Allow DEV tokens in local/test mode (`true` by default outside production) |
 
 > **Note:** Environment variables can still override `config.yaml` values for backward compatibility and deployment flexibility (e.g., `MEETSCRIBE_HEADLESS=true`).
 
-## Local Setup
+## Quick Start
 
 Prerequisites:
 
 - Node.js LTS (tested with Node 24)
 - npm
 
-### Step 1: Install dependencies
+### Step 1: Clone repository
+
+```bash
+git clone https://github.com/ang-1107/meet-scribe.git
+cd meet-scribe
+```
+
+### Step 2: Install dependencies
 
 ```bash
 npm install
 ```
 
-### Step 2: Set up environment variables
+### Step 3: Set up environment variables
 
 ```bash
 cp .env.example .env.local
@@ -162,7 +187,7 @@ Add your `GEMINI_API_KEY` (or `OPENAI_API_KEY`) for AI summarization.
 
 For production multi-user deployment, also set the Firebase variables listed above.
 
-### Step 3: Sign in with a Google account (one-time)
+### Step 4: Sign in with a Google account (one-time)
 
 Google Meet blocks anonymous and automation-detected browsers. The bot needs a real Google account session to join meetings.
 
@@ -174,7 +199,7 @@ A browser window opens to Google Accounts. Sign in with the account you want the
 
 > **Note:** You only need to do this once. The profile persists across restarts. For deployment, copy `data/chrome-profile/` to the server or re-run setup on the host.
 
-### Step 4: Start the app
+### Step 5: Start the app
 
 ```bash
 npm run dev
@@ -192,6 +217,7 @@ On the first transcription, the Whisper model (~150 MB for `base.en`) is downloa
 npm run dev             # Start development server
 npm run build           # Production build
 npm run start           # Start production server
+npm run start:next      # Raw Next.js start (without Railway wrapper)
 npm run setup:profile   # One-time Google account login for the bot
 npm run test            # Run unit + integration tests
 npm run test:e2e        # Run end-to-end browser tests

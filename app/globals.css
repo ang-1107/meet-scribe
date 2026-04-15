@@ -32,8 +32,16 @@ body {
   margin: 2rem auto 3rem;
 }
 
+.top-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+
 .hero {
-  margin-bottom: 1.4rem;
+  margin-bottom: 0;
 }
 
 .hero h1 {
@@ -87,6 +95,15 @@ body {
 .card h2 {
   margin: 0 0 0.8rem;
   font-family: "Space Grotesk", sans-serif;
+}
+
+.account-card {
+  justify-self: end;
+  width: 100%;
+}
+
+.account-card .row {
+  grid-template-columns: 1fr;
 }
 
 .card-form {
@@ -275,7 +292,41 @@ pre {
   background: #f0fdfa;
 }
 
+.page-footer {
+  margin-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  color: #334155;
+  font-size: 0.92rem;
+}
+
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #0f172a;
+  text-decoration: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  background: #ffffff;
+}
+
+.github-link:hover {
+  background: #f8fafc;
+}
+
 @media (max-width: 980px) {
+  .top-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .account-card {
+    justify-self: stretch;
+  }
+
   .card-form,
   .card-status,
   .card-transcript,

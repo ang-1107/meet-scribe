@@ -46,6 +46,31 @@ function authHeaders(authToken) {
     : {};
 }
 
+async function parseResponseBody(response) {
+  const text = await response.text();
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: text };
+  }
+}
+
+function resolveApiError(response, data, fallback) {
+  if (data && typeof data.error === "string" && data.error.trim()) {
+    return data.error;
+  }
+
+  if (!response.ok && response.status >= 500) {
+    return `${fallback} (server error ${response.status})`;
+  }
+
+  return fallback;
+}
+
 export default function HomePage() {
   const [meetLink, setMeetLink] = useState("");
   const [botName, setBotName] = useState("Meet Scribe Bot");
@@ -174,9 +199,9 @@ export default function HomePage() {
         ...authHeaders(authToken)
       }
     });
-    const data = await response.json();
+    const data = await parseResponseBody(response);
     if (!response.ok) {
-      throw new Error(data?.error || "Failed to load sessions");
+      throw new Error(resolveApiError(response, data, "Failed to load sessions"));
     }
 
     setSessions(data.sessions || []);
@@ -193,9 +218,9 @@ export default function HomePage() {
         ...authHeaders(authToken)
       }
     });
-    const data = await response.json();
+    const data = await parseResponseBody(response);
     if (!response.ok) {
-      throw new Error(data?.error || "Failed to load session");
+      throw new Error(resolveApiError(response, data, "Failed to load session"));
     }
     setActiveSession(data.session);
   }
@@ -222,7 +247,13 @@ export default function HomePage() {
     const token = encodeURIComponent(authToken);
     const source = new EventSource(`/api/sessions/${activeSessionId}/events?token=${token}`);
     source.onmessage = (event) => {
-      const payload = JSON.parse(event.data || "{}");
+      let payload = {};
+      try {
+        payload = JSON.parse(event.data || "{}");
+      } catch {
+        return;
+      }
+
       if (!payload?.session) {
         return;
       }
@@ -271,9 +302,9 @@ export default function HomePage() {
         })
       });
 
-      const data = await response.json();
+      const data = await parseResponseBody(response);
       if (!response.ok) {
-        throw new Error(data?.error || "Unable to start session");
+        throw new Error(resolveApiError(response, data, "Unable to start session"));
       }
 
       setActiveSession(data.session);
@@ -298,9 +329,9 @@ export default function HomePage() {
           ...authHeaders(authToken)
         }
       });
-      const data = await response.json();
+      const data = await parseResponseBody(response);
       if (!response.ok) {
-        throw new Error(data?.error || "Unable to stop bot");
+        throw new Error(resolveApiError(response, data, "Unable to stop bot"));
       }
 
       setActiveSession(data.session);
@@ -318,86 +349,88 @@ export default function HomePage() {
 
   return (
     <main className="page-wrap">
-      <section className="hero">
-        <p className="eyebrow">Google Meet AI Scribe</p>
-        <h1>Join, Capture, Summarize</h1>
-        <p className="subtext">
-          Paste a Meet link, launch the bot, stream progress live, and review transcript plus AI summary in one
-          dashboard.
-        </p>
-      </section>
-
-      <section className="card" style={{ marginBottom: "1rem" }}>
-        <h2>Account</h2>
-        {authMode === "dev" && (
-          <p>
-            Dev auth mode is active. User scope: <strong>{authLabel}</strong>
+      <div className="top-strip">
+        <section className="hero">
+          <p className="eyebrow">Google Meet AI Scribe</p>
+          <h1>Join, Capture, Summarize</h1>
+          <p className="subtext">
+            Paste a Meet link, launch the bot, stream progress live, and review transcript plus AI summary in one
+            dashboard.
           </p>
-        )}
-        {authMode === "firebase" && !authToken && (
-          <>
-            <div className="button-row" style={{ marginBottom: "0.75rem" }}>
-              <button type="button" onClick={signInWithGoogle} disabled={authBusy}>
-                {authBusy ? "Signing in..." : "Sign in with Google"}
+        </section>
+
+        <section className="card account-card">
+          <h2>Account</h2>
+          {authMode === "dev" && (
+            <p>
+              Dev auth mode is active. User scope: <strong>{authLabel}</strong>
+            </p>
+          )}
+          {authMode === "firebase" && !authToken && (
+            <>
+              <div className="button-row" style={{ marginBottom: "0.75rem" }}>
+                <button type="button" onClick={signInWithGoogle} disabled={authBusy}>
+                  {authBusy ? "Signing in..." : "Sign in with Google"}
+                </button>
+              </div>
+              <form onSubmit={handleEmailPasswordAuth}>
+                <div className="row">
+                  <label>
+                    Email
+                    <input
+                      type="email"
+                      value={authEmail}
+                      onChange={(event) => setAuthEmail(event.target.value)}
+                      autoComplete="email"
+                      required
+                    />
+                  </label>
+                  <label>
+                    Password
+                    <input
+                      type="password"
+                      value={authPassword}
+                      onChange={(event) => setAuthPassword(event.target.value)}
+                      autoComplete={authFormMode === "signup" ? "new-password" : "current-password"}
+                      minLength={6}
+                      required
+                    />
+                  </label>
+                </div>
+                <div className="button-row">
+                  <button type="submit" disabled={authBusy}>
+                    {authBusy
+                      ? authFormMode === "signup"
+                        ? "Creating account..."
+                        : "Signing in..."
+                      : authFormMode === "signup"
+                        ? "Create account"
+                        : "Sign in with Email"}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={authBusy}
+                    onClick={() => setAuthFormMode((current) => (current === "signup" ? "signin" : "signup"))}
+                  >
+                    {authFormMode === "signup" ? "Use existing account" : "Create new account"}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+          {authMode === "firebase" && authToken && (
+            <div className="button-row">
+              <p style={{ margin: 0, alignSelf: "center" }}>
+                Signed in as <strong>{authLabel}</strong>
+              </p>
+              <button type="button" className="secondary" onClick={signOutUser}>
+                Sign out
               </button>
             </div>
-            <form onSubmit={handleEmailPasswordAuth}>
-              <div className="row">
-                <label>
-                  Email
-                  <input
-                    type="email"
-                    value={authEmail}
-                    onChange={(event) => setAuthEmail(event.target.value)}
-                    autoComplete="email"
-                    required
-                  />
-                </label>
-                <label>
-                  Password
-                  <input
-                    type="password"
-                    value={authPassword}
-                    onChange={(event) => setAuthPassword(event.target.value)}
-                    autoComplete={authFormMode === "signup" ? "new-password" : "current-password"}
-                    minLength={6}
-                    required
-                  />
-                </label>
-              </div>
-              <div className="button-row">
-                <button type="submit" disabled={authBusy}>
-                  {authBusy
-                    ? authFormMode === "signup"
-                      ? "Creating account..."
-                      : "Signing in..."
-                    : authFormMode === "signup"
-                      ? "Create account"
-                      : "Sign in with Email"}
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={authBusy}
-                  onClick={() => setAuthFormMode((current) => (current === "signup" ? "signin" : "signup"))}
-                >
-                  {authFormMode === "signup" ? "Use existing account" : "Create new account"}
-                </button>
-              </div>
-            </form>
-          </>
-        )}
-        {authMode === "firebase" && authToken && (
-          <div className="button-row">
-            <p style={{ margin: 0, alignSelf: "center" }}>
-              Signed in as <strong>{authLabel}</strong>
-            </p>
-            <button type="button" className="secondary" onClick={signOutUser}>
-              Sign out
-            </button>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      </div>
 
       <section className="layout-grid">
         <article className="card card-form">
@@ -532,6 +565,19 @@ export default function HomePage() {
           </div>
         </article>
       </section>
+
+      <footer className="page-footer">
+        <span>Made with love</span>
+        <a href="https://github.com/ang-1107/meet-scribe" target="_blank" rel="noreferrer" className="github-link">
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.24.49-2.71-1.08-2.71-1.08-.36-.93-.9-1.18-.9-1.18-.73-.5.05-.49.05-.49.81.06 1.24.84 1.24.84.72 1.24 1.89.88 2.35.67.07-.53.28-.88.5-1.08-1.79-.2-3.68-.9-3.68-3.98 0-.88.31-1.6.82-2.17-.08-.2-.36-1.01.08-2.1 0 0 .67-.22 2.2.83a7.6 7.6 0 0 1 4 0c1.52-1.05 2.2-.83 2.2-.83.44 1.09.16 1.9.08 2.1.51.57.82 1.29.82 2.17 0 3.09-1.9 3.78-3.7 3.98.29.25.55.74.55 1.49v2.2c0 .21.14.46.55.38A8 8 0 0 0 8 0"
+            />
+          </svg>
+          <span>GitHub</span>
+        </a>
+      </footer>
     </main>
   );
 }
