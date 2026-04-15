@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "start:railway": "node scripts/startRailway.mjs",
+    "start": "node scripts/startRailway.mjs",
+    "start:next": "next start",
     "setup:profile": "node scripts/setupProfile.mjs",
     "test": "vitest run --config config/vitest.config.mjs",
     "test:watch": "vitest --config config/vitest.config.mjs",
