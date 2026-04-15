@@ -9,10 +9,30 @@ const child = spawn(process.execPath, [nextBin, "start", "-H", "0.0.0.0", "-p", 
   env: process.env
 });
 
+function forwardSignal(signal) {
+  if (!child.killed) {
+    child.kill(signal);
+  }
+}
+
+process.on("SIGTERM", () => {
+  forwardSignal("SIGTERM");
+});
+
+process.on("SIGINT", () => {
+  forwardSignal("SIGINT");
+});
+
 child.on("exit", (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
+  if (signal === "SIGTERM" || signal === "SIGINT") {
+    process.exit(0);
     return;
   }
+
+  if (signal) {
+    process.exit(1);
+    return;
+  }
+
   process.exit(code ?? 0);
 });
