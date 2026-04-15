@@ -12,7 +12,7 @@ bot:
   # Run Chromium in headless mode.
   # false = visible browser (recommended for local debugging)
   # true = no visible window (required for server deployment)
-  headless: false
+  headless: true
 
   # Path to the persistent Chrome profile that stores Google login cookies.
   # Relative paths are resolved from project root.
