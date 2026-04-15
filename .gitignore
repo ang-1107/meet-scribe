@@ -209,6 +209,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # App runtime data
+data/
 data/sessions.json
 data/chrome-profile/
 .e2e-data/

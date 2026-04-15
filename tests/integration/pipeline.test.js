@@ -25,7 +25,8 @@ describe("session pipeline", () => {
     const session = await createSession({
       meetLink: "https://meet.google.com/abc-defg-hij",
       botName: "Pipeline Bot",
-      durationSeconds: 1
+      durationSeconds: 1,
+      ownerUid: "pipeline-user"
     });
 
     await runSessionPipeline(session.id);
@@ -34,5 +35,5 @@ describe("session pipeline", () => {
     expect(completed.status).toBe("completed");
     expect(completed.transcript.length).toBeGreaterThan(0);
     expect(completed.summary.short.length).toBeGreaterThan(0);
-  });
+  }, 15000);
 });

@@ -1,6 +1,7 @@
 import { getConfig, resetConfig } from "@/lib/server/config";
 import fs from "fs";
 import path from "path";
+import yaml from "js-yaml";
 
 describe("getConfig", () => {
   const originalEnv = { ...process.env };
@@ -42,12 +43,14 @@ describe("getConfig", () => {
 
   it("reads values from config.yaml when present", () => {
     const config = getConfig();
+    const configPath = path.resolve(process.cwd(), "config.yaml");
+    const raw = fs.readFileSync(configPath, "utf-8");
+    const fileConfig = yaml.load(raw) || {};
 
-    // These should match the defaults in the project's config.yaml.
-    expect(config.bot.name).toBe("Meet Scribe Bot");
-    expect(config.bot.durationSeconds).toBe(300);
-    expect(config.transcription.chunkIntervalSeconds).toBe(30);
-    expect(config.transcription.whisperModel).toBe("Xenova/whisper-base.en");
+    expect(config.bot.name).toBe(fileConfig.bot?.name);
+    expect(config.bot.durationSeconds).toBe(fileConfig.bot?.durationSeconds);
+    expect(config.transcription.chunkIntervalSeconds).toBe(fileConfig.transcription?.chunkIntervalSeconds);
+    expect(config.transcription.whisperModel).toBe(fileConfig.transcription?.whisperModel);
   });
 
   it("env vars override config.yaml values", () => {

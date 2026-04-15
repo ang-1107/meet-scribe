@@ -1,5 +1,6 @@
 import { getSessionById } from "@/lib/server/store";
 import { subscribeToSession } from "@/lib/server/events";
+import { requireAuth } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +10,12 @@ function asSseMessage(payload) {
 }
 
 export async function GET(request, { params }) {
-  const session = await getSessionById(params.id);
+  const auth = await requireAuth(request, { allowQueryToken: true });
+  if (!auth.ok) {
+    return Response.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const session = await getSessionById(params.id, auth.user.uid);
 
   if (!session) {
     return Response.json({ error: "Session not found." }, { status: 404 });

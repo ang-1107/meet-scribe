@@ -1,6 +1,8 @@
 import { createSession, listSessions } from "@/lib/server/store";
 import { runSessionPipeline } from "@/lib/server/pipeline";
 import { publishSessionUpdate } from "@/lib/server/events";
+import { requireAuth } from "@/lib/server/auth";
+import { getConfig } from "@/lib/server/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,29 +16,45 @@ function isValidMeetLink(link) {
   }
 }
 
-export async function GET() {
-  const sessions = await listSessions();
+export async function GET(request) {
+  const auth = await requireAuth(request);
+  if (!auth.ok) {
+    return Response.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const sessions = await listSessions(auth.user.uid);
   return Response.json({ sessions });
 }
 
 export async function POST(request) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.ok) {
+      return Response.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const appConfig = getConfig();
     const body = await request.json();
     const meetLink = String(body?.meetLink || "").trim();
-    const botName = String(body?.botName || process.env.MEETSCRIBE_DEFAULT_BOT_NAME || "Meet Scribe Bot").slice(
+    const botName = String(body?.botName || appConfig.bot.name || "Meet Scribe Bot").slice(
       0,
       60
     );
     const durationSeconds = Math.min(
       3600,
-      Math.max(30, Number(body?.durationSeconds || process.env.MEETSCRIBE_DEFAULT_DURATION_SECONDS || 300))
+      Math.max(30, Number(body?.durationSeconds || appConfig.bot.durationSeconds || 300))
     );
 
     if (!isValidMeetLink(meetLink)) {
       return Response.json({ error: "Please provide a valid Google Meet link." }, { status: 400 });
     }
 
-    const session = await createSession({ meetLink, botName, durationSeconds });
+    const session = await createSession({
+      meetLink,
+      botName,
+      durationSeconds,
+      ownerUid: auth.user.uid
+    });
     publishSessionUpdate(session);
 
     runSessionPipeline(session.id).catch(() => undefined);

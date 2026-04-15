@@ -15,6 +15,7 @@ vi.mock("@/lib/server/events", () => ({
 
 describe("/api/sessions route", () => {
   let tempDir;
+  const authHeader = { Authorization: "Bearer DEV:test-user" };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -34,7 +35,7 @@ describe("/api/sessions route", () => {
     const response = await POST(
       new Request("http://localhost/api/sessions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify({ meetLink: "https://example.com/not-meet" })
       })
     );
@@ -51,7 +52,7 @@ describe("/api/sessions route", () => {
     const createResponse = await POST(
       new Request("http://localhost/api/sessions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify({
           meetLink: "https://meet.google.com/abc-defg-hij",
           botName: "Test Bot",
@@ -64,11 +65,16 @@ describe("/api/sessions route", () => {
     const created = await createResponse.json();
 
     expect(created.session.id).toBeTruthy();
+    expect(created.session.ownerUid).toBe("test-user");
     expect(created.session.config.botName).toBe("Test Bot");
     expect(runSessionPipeline).toHaveBeenCalledWith(created.session.id);
     expect(publishSessionUpdate).toHaveBeenCalledTimes(1);
 
-    const listResponse = await GET();
+    const listResponse = await GET(
+      new Request("http://localhost/api/sessions", {
+        headers: authHeader
+      })
+    );
     const listed = await listResponse.json();
     expect(listed.sessions).toHaveLength(1);
   });

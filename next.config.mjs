@@ -14,7 +14,8 @@ const nextConfig = {
       "@xenova/transformers",
       "onnxruntime-node",
       "sharp",
-      "js-yaml"
+      "js-yaml",
+      "firebase-admin"
     ]
   }
 };

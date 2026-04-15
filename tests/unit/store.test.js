@@ -27,7 +27,8 @@ describe("session store", () => {
     const created = await createSession({
       meetLink: "https://meet.google.com/abc-defg-hij",
       botName: "Bot",
-      durationSeconds: 60
+      durationSeconds: 60,
+      ownerUid: "user-a"
     });
 
     expect(created.id).toBeTruthy();
@@ -48,8 +49,9 @@ describe("session store", () => {
     const found = await getSessionById(created.id);
     expect(found.transcript).toContain("First line");
     expect(found.transcript).toContain("Second line");
+    expect(found.ownerUid).toBe("user-a");
 
-    const all = await listSessions();
+    const all = await listSessions("user-a");
     expect(all).toHaveLength(1);
     expect(all[0].id).toBe(created.id);
   });

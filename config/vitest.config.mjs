@@ -4,13 +4,13 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, ".")
+      "@": path.resolve(__dirname, "..")
     }
   },
   test: {
     globals: true,
     environment: "node",
-    setupFiles: ["./vitest.setup.js"],
+    setupFiles: [path.resolve(__dirname, "vitest.setup.js")],
     include: ["tests/**/*.test.{js,jsx}"]
   }
 });

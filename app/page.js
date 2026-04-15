@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { GoogleAuthProvider, onIdTokenChanged, signInWithPopup, signOut } from "firebase/auth";
+import { getFirebaseClientAuth, isFirebaseClientConfigured } from "@/lib/firebase/client";
 
 const FINAL_STATES = new Set(["completed", "failed", "stopped"]);
 
@@ -17,6 +19,26 @@ function formatDate(iso) {
   return new Date(iso).toLocaleString();
 }
 
+function getOrCreateDevToken() {
+  const storageKey = "meet-scribe-dev-user-id";
+  const existing = window.localStorage.getItem(storageKey);
+  if (existing) {
+    return `DEV:${existing}`;
+  }
+
+  const next = window.crypto?.randomUUID ? window.crypto.randomUUID() : `dev-${Date.now()}`;
+  window.localStorage.setItem(storageKey, next);
+  return `DEV:${next}`;
+}
+
+function authHeaders(authToken) {
+  return authToken
+    ? {
+        Authorization: `Bearer ${authToken}`
+      }
+    : {};
+}
+
 export default function HomePage() {
   const [meetLink, setMeetLink] = useState("");
   const [botName, setBotName] = useState("Meet Scribe Bot");
@@ -25,11 +47,93 @@ export default function HomePage() {
   const [activeSession, setActiveSession] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [authToken, setAuthToken] = useState("");
+  const [authLabel, setAuthLabel] = useState("");
+  const [authMode, setAuthMode] = useState("none");
+  const [authBusy, setAuthBusy] = useState(false);
 
   const activeSessionId = activeSession?.id || null;
+  const firebaseEnabled = isFirebaseClientConfigured();
+
+  useEffect(() => {
+    if (firebaseEnabled) {
+      const auth = getFirebaseClientAuth();
+      if (!auth) {
+        setAuthReady(true);
+        return undefined;
+      }
+
+      const unsubscribe = onIdTokenChanged(auth, async (user) => {
+        if (!user) {
+          setAuthToken("");
+          setAuthLabel("");
+          setAuthMode("firebase");
+          setSessions([]);
+          setActiveSession(null);
+          setAuthReady(true);
+          return;
+        }
+
+        const token = await user.getIdToken();
+        setAuthToken(token);
+        setAuthLabel(user.email || user.displayName || user.uid);
+        setAuthMode("firebase");
+        setAuthReady(true);
+      });
+
+      return () => unsubscribe();
+    }
+
+    const devToken = getOrCreateDevToken();
+    setAuthToken(devToken);
+    setAuthLabel(devToken.slice(4, 12));
+    setAuthMode("dev");
+    setAuthReady(true);
+    return undefined;
+  }, [firebaseEnabled]);
+
+  async function signInWithGoogle() {
+    const auth = getFirebaseClientAuth();
+    if (!auth) {
+      setError("Firebase client is not configured.");
+      return;
+    }
+
+    setError("");
+    setAuthBusy(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function signOutUser() {
+    const auth = getFirebaseClientAuth();
+    if (!auth) {
+      return;
+    }
+
+    await signOut(auth);
+  }
 
   async function fetchSessions() {
-    const response = await fetch("/api/sessions", { cache: "no-store" });
+    if (!authToken) {
+      setSessions([]);
+      setActiveSession(null);
+      return;
+    }
+
+    const response = await fetch("/api/sessions", {
+      cache: "no-store",
+      headers: {
+        ...authHeaders(authToken)
+      }
+    });
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data?.error || "Failed to load sessions");
@@ -43,7 +147,12 @@ export default function HomePage() {
   }
 
   async function loadSession(sessionId) {
-    const response = await fetch(`/api/sessions/${sessionId}`, { cache: "no-store" });
+    const response = await fetch(`/api/sessions/${sessionId}`, {
+      cache: "no-store",
+      headers: {
+        ...authHeaders(authToken)
+      }
+    });
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data?.error || "Failed to load session");
@@ -52,6 +161,10 @@ export default function HomePage() {
   }
 
   useEffect(() => {
+    if (!authReady || !authToken) {
+      return undefined;
+    }
+
     fetchSessions().catch((err) => setError(err.message));
 
     const interval = setInterval(() => {
@@ -59,14 +172,15 @@ export default function HomePage() {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [authReady, authToken]);
 
   useEffect(() => {
-    if (!activeSessionId) {
+    if (!activeSessionId || !authToken) {
       return undefined;
     }
 
-    const source = new EventSource(`/api/sessions/${activeSessionId}/events`);
+    const token = encodeURIComponent(authToken);
+    const source = new EventSource(`/api/sessions/${activeSessionId}/events?token=${token}`);
     source.onmessage = (event) => {
       const payload = JSON.parse(event.data || "{}");
       if (!payload?.session) {
@@ -91,10 +205,15 @@ export default function HomePage() {
     };
 
     return () => source.close();
-  }, [activeSessionId]);
+  }, [activeSessionId, authToken]);
 
   async function startBot(event) {
     event.preventDefault();
+    if (!authToken) {
+      setError("Please sign in first.");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
@@ -102,7 +221,8 @@ export default function HomePage() {
       const response = await fetch("/api/sessions", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...authHeaders(authToken)
         },
         body: JSON.stringify({
           meetLink,
@@ -133,7 +253,10 @@ export default function HomePage() {
     setError("");
     try {
       const response = await fetch(`/api/sessions/${activeSessionId}/stop`, {
-        method: "POST"
+        method: "POST",
+        headers: {
+          ...authHeaders(authToken)
+        }
       });
       const data = await response.json();
       if (!response.ok) {
@@ -162,6 +285,32 @@ export default function HomePage() {
           Paste a Meet link, launch the bot, stream progress live, and review transcript plus AI summary in one
           dashboard.
         </p>
+      </section>
+
+      <section className="card" style={{ marginBottom: "1rem" }}>
+        <h2>Account</h2>
+        {authMode === "dev" && (
+          <p>
+            Dev auth mode is active. User scope: <strong>{authLabel}</strong>
+          </p>
+        )}
+        {authMode === "firebase" && !authToken && (
+          <div className="button-row">
+            <button type="button" onClick={signInWithGoogle} disabled={authBusy}>
+              {authBusy ? "Signing in..." : "Sign in with Google"}
+            </button>
+          </div>
+        )}
+        {authMode === "firebase" && authToken && (
+          <div className="button-row">
+            <p style={{ margin: 0, alignSelf: "center" }}>
+              Signed in as <strong>{authLabel}</strong>
+            </p>
+            <button type="button" className="secondary" onClick={signOutUser}>
+              Sign out
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="layout-grid">
