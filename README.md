@@ -37,14 +37,12 @@ Live app: https://meet-scribe.up.railway.app/
 
 ## How It Works
 
-```text
 1. User submits a Meet link in the dashboard.
 2. Bot launches a stealth Chromium browser with a saved Google account session.
 3. Bot joins the meeting, intercepts WebRTC audio from other participants.
 4. Audio chunks (configurable interval, default 30s) are transcribed locally by Whisper.
 5. Transcript is summarized by Gemini/OpenAI LLM.
 6. Dashboard displays live status, transcript chunks, and final summary.
-```
 
 ## Architecture
 
@@ -66,6 +64,8 @@ Services
 	- Storage: Firestore (preferred) with local JSON fallback
 	- Configuration: config.yaml + .env.local (secrets only)
 ```
+
+![Architecture Diagram](app/architecture.png)
 
 ## Tech Stack
 
